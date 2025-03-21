@@ -15,7 +15,8 @@
     document.body.appendChild(statusMessage);
 
     // Helper to extract URLs using regex, with filtering
-    function extractLinksFromText(text) {
+function extractLinksFromText(text) {
+    if (typeof text === 'string') { // Ensure it's a string before calling match()
         let urlRegex = /(https?:\/\/[^\s'"]+)/g;
         let found = text.match(urlRegex) || [];
         found.forEach(link => {
@@ -34,46 +35,28 @@
             }
         });
     }
+}
+function collectLinks() {
+    document.querySelectorAll('a[href], [data-href]').forEach(a => {
+        let href = a.getAttribute('href') || a.getAttribute('data-href');
+        if (typeof href === 'string' && href.startsWith('http')) {
+            extractLinksFromText(href);
+        }
+    });
 
-    function collectLinks() {
-        console.log('Collecting links...');
-
-        // Collect from visible DOM elements
-        document.querySelectorAll('a[href], [data-href]').forEach(a => {
-            let href = a.getAttribute('href') || a.getAttribute('data-href');
-            if (href && href.startsWith('http')) {
-                extractLinksFromText(href);
+    // Same fix for `innerText` extraction
+    document.querySelectorAll('*').forEach(el => {
+        if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) { // TEXT_NODE
+            let text = el.innerText;
+            if (typeof text === 'string') {
+                extractLinksFromText(text);
             }
-        });
+        }
+    });
 
-        // Extract links from `onclick` attributes
-        document.querySelectorAll('[onclick]').forEach(el => {
-            let onclick = el.getAttribute('onclick');
-            extractLinksFromText(onclick);
-        });
-
-        // Extract links from text content (if direct linking is encoded in JS)
-        document.querySelectorAll('*').forEach(el => {
-            if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) { // TEXT_NODE
-                extractLinksFromText(el.innerText);
-            }
-        });
-
-        // Scan `innerText` for JSON-based links
-        extractLinksFromText(document.body.innerText);
-
-        // Collect from iframes (if accessible)
-        document.querySelectorAll('iframe').forEach(iframe => {
-            try {
-                let iframeLinks = [...iframe.contentDocument.querySelectorAll('a[href], [data-href]')]
-                    .map(a => a.getAttribute('href') || a.getAttribute('data-href'))
-                    .filter(href => href && href.startsWith('http'));
-                iframeLinks.forEach(link => extractLinksFromText(link));
-            } catch (e) {
-                console.warn("Cannot access iframe content due to cross-origin policy.");
-            }
-        });
-
+    extractLinksFromText(document.body.innerText || '');
+}
+    
         // Collect from shadow DOM
         function findShadowLinks(node) {
             if (node.shadowRoot) {
